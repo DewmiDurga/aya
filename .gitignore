@@ -23,8 +23,13 @@ yarn-error.log*
 # OS & Editor
 .DS_Store
 Thumbs.db
+Desktop.ini
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # Testing
 coverage/
+*.lcov
+.nyc_output
