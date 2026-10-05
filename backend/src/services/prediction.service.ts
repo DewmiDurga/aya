@@ -24,7 +24,7 @@ export function predictNextPeriod(periodStartDates: string[]): PredictionResult 
   const gaps: number[] = [];
   for (let i = 1; i < sorted.length; i++) {
     const gap = daysBetween(sorted[i - 1], sorted[i]);
-    if (gap >= 15 && gap <= 100) {
+    if (gap >= 10 && gap <= 100) {
       gaps.push(gap);
     }
   }
