@@ -9,3 +9,4 @@ export const profileRouter = Router();
 profileRouter.use(requireAuth);
 profileRouter.get("/", getProfile);
 profileRouter.patch("/", validateBody(UpdateProfileSchema), updateProfile);
+profileRouter.put("/", validateBody(UpdateProfileSchema), updateProfile);

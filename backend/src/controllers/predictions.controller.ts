@@ -1,7 +1,8 @@
 import { Response } from "express";
 import { AuthenticatedRequest } from "../types";
-import { supabaseAdmin } from "../config/supabase";
+import { supabaseAdmin, isSupabaseConfigured } from "../config/supabase";
 import { predictNextPeriod } from "../services/prediction.service";
+import { periodStore } from "./periods.controller";
 
 export async function getPredictions(
   req: AuthenticatedRequest,
@@ -10,21 +11,34 @@ export async function getPredictions(
   const userId = req.user?.id || "demo-user-id";
 
   try {
-    const { data: periods, error } = await supabaseAdmin
-      .from("period_logs")
-      .select("start_date")
-      .eq("user_id", userId)
-      .order("start_date", { ascending: false })
-      .limit(6);
+    let periods: any[] | null = null;
 
-    if (error && error.code !== "PGRST116") {
-      // If table doesn't exist yet, return sample demo prediction
-      console.warn("Database notice:", error.message);
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabaseAdmin
+        .from("period_logs")
+        .select("start_date")
+        .eq("user_id", userId)
+        .order("start_date", { ascending: false })
+        .limit(6);
+
+      if (!error && data) {
+        periods = data;
+      }
     }
 
-    const startDates = periods && periods.length > 0
-      ? periods.map((p) => p.start_date)
-      : ["2026-07-01", "2026-07-29", "2026-08-27", "2026-09-25"]; // demo fallback
+    let startDates: string[] = [];
+
+    if (periods && periods.length > 0) {
+      startDates = periods.map((p) => p.start_date);
+    } else {
+      // Check in-memory store
+      const inMem = periodStore.get(userId);
+      if (inMem && inMem.length > 0) {
+        startDates = inMem.map((p) => p.start_date);
+      } else {
+        startDates = ["2026-07-01", "2026-07-29", "2026-08-27", "2026-09-25"]; // demo fallback
+      }
+    }
 
     const prediction = predictNextPeriod(startDates);
 

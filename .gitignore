@@ -35,3 +35,6 @@ Desktop.ini
 coverage/
 *.lcov
 .nyc_output
+
+# Mobile Expo
+.expo/

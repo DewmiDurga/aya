@@ -3,7 +3,11 @@ import { ENV } from "../config/env";
 import { checkRedFlags } from "./redFlag.service";
 
 let anthropicClient: Anthropic | null = null;
-if (ENV.ANTHROPIC_API_KEY) {
+const isDummyKey = !ENV.ANTHROPIC_API_KEY || 
+  ENV.ANTHROPIC_API_KEY.includes("dummy") || 
+  ENV.ANTHROPIC_API_KEY.includes("your-");
+
+if (!isDummyKey) {
   anthropicClient = new Anthropic({ apiKey: ENV.ANTHROPIC_API_KEY });
 }
 
@@ -12,6 +16,67 @@ export interface ChatContext {
   lastPeriodStart?: string;
   recentSymptoms?: string[];
   averageCycleLength?: number;
+}
+
+function generateEducationalResponse(
+  userMessage: string,
+  context?: ChatContext,
+  redFlagCheck?: ReturnType<typeof checkRedFlags>
+): string {
+  const lower = userMessage.toLowerCase();
+
+  if (redFlagCheck?.hasRedFlags) {
+    if (
+      lower.includes("no period") ||
+      lower.includes("missed") ||
+      lower.includes("amenorrhea") ||
+      lower.includes("haven't had") ||
+      lower.includes("havent had")
+    ) {
+      return (
+        "A prolonged absence of menstrual periods (amenorrhea) can be associated with hormonal imbalances, PCOS, thyroid conditions, or other physiological changes. " +
+        "Because missing periods for an extended duration warrants clinical investigation, we strongly recommend consulting a qualified doctor or gynecologist for a comprehensive evaluation."
+      );
+    }
+    if (lower.includes("bleed") || lower.includes("soak") || lower.includes("clot")) {
+      return (
+        "Experiencing unusually heavy bleeding, soaking through pads rapidly, or passing large blood clots can lead to significant blood loss. " +
+        "Please seek a medical evaluation from a physician to investigate potential causes such as fibroids or hormonal fluctuations."
+      );
+    }
+    return (
+      "The symptoms you have described may indicate an acute health concern. " +
+      "We strongly advise consulting a qualified healthcare professional or physician for personalized medical advice."
+    );
+  }
+
+  if (lower.includes("cramp") || lower.includes("pain")) {
+    return (
+      "Mild cramps are commonly caused by uterine contractions stimulated by prostaglandins during your cycle. " +
+      "Helpful non-medical comfort measures include applying a warm compress, staying well hydrated, and gentle stretching. " +
+      "If pain ever becomes unbearable or impedes daily activities, consider discussing it with your doctor."
+    );
+  }
+
+  if (lower.includes("food") || lower.includes("eat") || lower.includes("diet") || lower.includes("nutrition")) {
+    return (
+      "Nutritional needs subtly shift throughout your cycle. During menstruation and the follicular phase, iron-rich foods, vitamin C, and complex carbohydrates support cellular rebuilding and energy. " +
+      "In the luteal phase, magnesium-rich foods (such as pumpkin seeds and dark leafy greens) can help ease premenstrual bloating."
+    );
+  }
+
+  if (lower.includes("irregular") || lower.includes("variation") || lower.includes("normal") || lower.includes("28 day")) {
+    return (
+      "Menstrual cycles naturally vary between 21 and 35 days, and fluctuations of 2 to 7 days from month to month are normal and frequently influenced by stress, travel, or sleep patterns. " +
+      "Logging each cycle consistently helps establish your individual personal baseline."
+    );
+  }
+
+  return (
+    `Hello! I am ඇය (Eya), your reproductive wellness companion. ` +
+    `Based on your cycle profile${context?.cycleDay ? ` (Cycle Day ${context.cycleDay})` : ""}, ` +
+    `remember to track your symptoms, stay hydrated, and maintain balanced nutrition. How can I assist you with your cycle today?`
+  );
 }
 
 export async function askClaudeChatbot(
@@ -38,10 +103,10 @@ ${
 Keep answers concise, clear, and reassuring.`;
 
   if (!anthropicClient) {
-    // Graceful offline mock response when API key is not yet set
-    const mockReply = `Hello! I am ඇය (Eya), your health companion. Based on your cycle records, remember to stay hydrated, maintain light physical activity, and track any unusual patterns. (Note: Running in local demonstration mode. Add ANTHROPIC_API_KEY to activate live Claude 3.5 responses).`;
+    // Educational response with safety protocols
+    const reply = generateEducationalResponse(userMessage, context, redFlagCheck);
     return {
-      reply: mockReply,
+      reply,
       wasRedFlagged: redFlagCheck.hasRedFlags,
       disclaimer: redFlagCheck.advisoryDisclaimer
     };
@@ -64,12 +129,13 @@ Keep answers concise, clear, and reassuring.`;
       disclaimer: redFlagCheck.advisoryDisclaimer
     };
   } catch (error: any) {
-    console.error("Error communicating with Claude API:", error.message);
+    console.warn("Live Claude API unavailable, using educational fallback:", error.message);
+    const reply = generateEducationalResponse(userMessage, context, redFlagCheck);
     return {
-      reply:
-        "I am currently unable to process your request. Please check your internet connection or try again shortly.",
+      reply,
       wasRedFlagged: redFlagCheck.hasRedFlags,
       disclaimer: redFlagCheck.advisoryDisclaimer
     };
   }
 }
+

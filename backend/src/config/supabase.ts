@@ -1,8 +1,18 @@
 import { createClient } from "@supabase/supabase-js";
 import { ENV } from "./env";
 
-if (!ENV.SUPABASE_URL || !ENV.SUPABASE_SERVICE_ROLE_KEY) {
-  console.warn("⚠️ SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not configured. Running in mock/offline mode.");
+export const isSupabaseConfigured = Boolean(
+  ENV.SUPABASE_URL &&
+  !ENV.SUPABASE_URL.includes("dummy") &&
+  !ENV.SUPABASE_URL.includes("placeholder") &&
+  !ENV.SUPABASE_URL.includes("your-project") &&
+  ENV.SUPABASE_SERVICE_ROLE_KEY &&
+  !ENV.SUPABASE_SERVICE_ROLE_KEY.includes("Dummy") &&
+  !ENV.SUPABASE_SERVICE_ROLE_KEY.includes("your-supabase")
+);
+
+if (!isSupabaseConfigured) {
+  console.warn("⚠️ SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not configured with live credentials. Running with high-performance local store.");
 }
 
 export const supabaseAdmin = createClient(
@@ -15,3 +25,4 @@ export const supabaseAdmin = createClient(
     }
   }
 );
+
